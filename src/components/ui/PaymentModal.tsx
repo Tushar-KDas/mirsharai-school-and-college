@@ -38,10 +38,13 @@ export default function PaymentModal({
   const [loading, setLoading] = useState(false);
   const [paymentResult, setPaymentResult] = useState<any | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
+  const isSubmittingRef = React.useRef(false);
 
   if (!isOpen) return null;
 
   const handlePay = async () => {
+    if (isSubmittingRef.current || loading) return;
+    isSubmittingRef.current = true;
     setLoading(true);
     try {
       const res = await fetch('/api/payment/process', {
@@ -50,7 +53,7 @@ export default function PaymentModal({
         body: JSON.stringify({
           invoiceId: invoice.id,
           studentId: invoice.studentId,
-          amount: dueAmount,
+          amount: dueAmount > 0 ? dueAmount : invoice.totalPayable,
           paymentMethod,
           payerPhone,
         }),
@@ -59,15 +62,19 @@ export default function PaymentModal({
       const data = await res.json();
       if (res.ok && data.success) {
         setPaymentResult(data);
-        if (onPaymentSuccess) onPaymentSuccess();
       } else {
-        alert(data.error || 'Payment failed');
+        alert(
+          data.error === 'INVOICE_ALREADY_PAID'
+            ? (locale === 'bn' ? 'এই ফি-টি ইতিমধ্যে পরিশোধ করা হয়েছে।' : 'This fee has already been fully paid.')
+            : (data.error || 'Payment failed')
+        );
       }
     } catch (err) {
       console.error(err);
-      alert('Network error while processing payment');
+      alert(locale === 'bn' ? 'পেমেন্ট সম্পন্ন করার সময় নেটওয়ার্ক সমস্যা হয়েছে' : 'Network error while processing payment');
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -84,7 +91,10 @@ export default function PaymentModal({
               </h3>
             </div>
             <button
-              onClick={onClose}
+              onClick={() => {
+                if (paymentResult && onPaymentSuccess) onPaymentSuccess();
+                onClose();
+              }}
               className="p-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/10"
             >
               <X className="w-5 h-5" />
@@ -251,7 +261,10 @@ export default function PaymentModal({
                     <span>{t.fees.receiptDownload}</span>
                   </button>
                   <button
-                    onClick={onClose}
+                    onClick={() => {
+                      if (onPaymentSuccess) onPaymentSuccess();
+                      onClose();
+                    }}
                     className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-all"
                   >
                     {locale === 'bn' ? 'ড্যাশবোর্ডে ফিরুন' : 'Back to Dashboard'}

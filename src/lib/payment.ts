@@ -31,8 +31,31 @@ export async function processOnlinePayment(data: PaymentRequest): Promise<Paymen
     throw new Error('INVOICE_NOT_FOUND');
   }
 
-  const remainingDue = invoice.totalPayable - invoice.paidAmount;
-  if (amount <= 0 || amount > remainingDue) {
+  const remainingDue = Math.max(0, Math.round((invoice.totalPayable - invoice.paidAmount) * 100) / 100);
+
+  // Idempotency: If invoice is already fully paid, return existing verified payment
+  if (invoice.status === 'PAID' || remainingDue <= 0) {
+    const existingPayment = await prisma.payment.findFirst({
+      where: { invoiceId: invoice.id },
+      orderBy: { paidAt: 'desc' },
+    });
+
+    if (existingPayment) {
+      return {
+        success: true,
+        transactionId: existingPayment.transactionId,
+        receiptNo: existingPayment.receiptNo,
+        amount: existingPayment.amount,
+        paymentMethod: existingPayment.paymentMethod,
+        paidAt: existingPayment.paidAt.toISOString(),
+        message: 'This invoice has already been fully settled.',
+      };
+    }
+  }
+
+  // Calculate actual payable portion (safe against minor float precision discrepancies)
+  const payableAmount = Math.min(amount, remainingDue > 0 ? remainingDue : invoice.totalPayable);
+  if (payableAmount <= 0) {
     throw new Error('INVALID_PAYMENT_AMOUNT');
   }
 
@@ -48,7 +71,7 @@ export async function processOnlinePayment(data: PaymentRequest): Promise<Paymen
     data: {
       attemptId: `ATT-${Date.now()}-${randomSuffix}`,
       studentId,
-      amount,
+      amount: payableAmount,
       currency: 'BDT',
       gateway: paymentMethod,
       status: 'SUCCESS',
@@ -65,7 +88,7 @@ export async function processOnlinePayment(data: PaymentRequest): Promise<Paymen
         invoiceId,
         paymentAttemptId: attempt.id,
         studentId,
-        amount,
+        amount: payableAmount,
         paymentMethod,
         transactionId,
         status: 'VERIFIED',
@@ -75,8 +98,8 @@ export async function processOnlinePayment(data: PaymentRequest): Promise<Paymen
       },
     });
 
-    const newPaidAmount = invoice.paidAmount + amount;
-    const newStatus = newPaidAmount >= invoice.totalPayable ? 'PAID' : 'PARTIAL';
+    const newPaidAmount = invoice.paidAmount + payableAmount;
+    const newStatus = newPaidAmount >= invoice.totalPayable - 0.01 ? 'PAID' : 'PARTIAL';
 
     await tx.invoice.update({
       where: { id: invoiceId },

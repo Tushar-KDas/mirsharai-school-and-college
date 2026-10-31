@@ -17,7 +17,15 @@ export async function POST(request: Request) {
     }
 
     const count = await prisma.staff.count({ where: { isTeacher: true } });
-    const employeeId = `MSC-TEA-${(count + 1).toString().padStart(3, '0')}`;
+    let employeeId = `MSC-TEA-${(count + 1).toString().padStart(3, '0')}`;
+    const existingEmp = await prisma.staff.findUnique({ where: { employeeId } });
+    if (existingEmp) {
+      employeeId = `MSC-TEA-${(count + 2).toString().padStart(3, '0')}`;
+      const existingEmp2 = await prisma.staff.findUnique({ where: { employeeId } });
+      if (existingEmp2) {
+        employeeId = `MSC-TEA-${Date.now().toString().slice(-4)}`;
+      }
+    }
 
     const newTeacher = await prisma.staff.create({
       data: {

@@ -16,9 +16,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
     }
 
+    let finalVoucherNo = voucherNo;
+    const existingVoucher = await prisma.expense.findUnique({ where: { voucherNo: finalVoucherNo } });
+    if (existingVoucher) {
+      finalVoucherNo = `${voucherNo}-${Date.now().toString().slice(-4)}`;
+    }
+
     const expense = await prisma.expense.create({
       data: {
-        voucherNo,
+        voucherNo: finalVoucherNo,
         category,
         amount: parseFloat(amount),
         description,

@@ -26,7 +26,15 @@ export async function POST(req: Request) {
     }
 
     const count = await prisma.admissionApplication.count();
-    const applicationNo = `MSC-ADM-2026-${(count + 1).toString().padStart(4, '0')}`;
+    let applicationNo = `MSC-ADM-2026-${(count + 1).toString().padStart(4, '0')}`;
+    const existingApp = await prisma.admissionApplication.findUnique({ where: { applicationNo } });
+    if (existingApp) {
+      applicationNo = `MSC-ADM-2026-${(count + 10).toString().padStart(4, '0')}`;
+      const existingApp2 = await prisma.admissionApplication.findUnique({ where: { applicationNo } });
+      if (existingApp2) {
+        applicationNo = `MSC-ADM-2026-${Date.now().toString().slice(-5)}`;
+      }
+    }
 
     const application = await prisma.admissionApplication.create({
       data: {

@@ -9,8 +9,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const session = await getSession();
-  if (!session || session.role !== 'SUPER_ADMIN') {
-    return NextResponse.json({ error: 'Only Super Admin can edit institution settings' }, { status: 403 });
+  if (!session || (session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN')) {
+    return NextResponse.json({ error: 'Only Administrators can edit institution settings' }, { status: 403 });
   }
 
   try {

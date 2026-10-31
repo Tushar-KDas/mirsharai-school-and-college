@@ -117,10 +117,10 @@ export default function Sidebar({ role, isOpen, onClose }: SidebarProps) {
       case 'ACCOUNTANT':
         return [
           { href: `/${locale}/accountant/dashboard`, label: locale === 'bn' ? 'ড্যাশবোর্ড' : 'Dashboard', icon: LayoutDashboard },
-          { href: `/${locale}/accountant/invoices`, label: locale === 'bn' ? 'চালান ও রসিদ' : 'Invoices & Receipts', icon: CreditCard },
+          { href: `/${locale}/admin/fees`, label: locale === 'bn' ? 'চালান ও রসিদ' : 'Invoices & Receipts', icon: CreditCard },
           { href: `/${locale}/accountant/payments`, label: locale === 'bn' ? 'আদায়কৃত পেমেন্ট' : 'Collections', icon: Receipt },
-          { href: `/${locale}/accountant/expenses`, label: locale === 'bn' ? 'প্রতিষ্ঠান ব্যয়' : 'Expenses', icon: FolderOpen },
-          { href: `/${locale}/accountant/reports`, label: locale === 'bn' ? 'আর্থিক বিবরণী' : 'Financial Reports', icon: BarChart3 },
+          { href: `/${locale}/admin/expenses`, label: locale === 'bn' ? 'প্রতিষ্ঠান ব্যয়' : 'Expenses', icon: FolderOpen },
+          { href: `/${locale}/admin/reports`, label: locale === 'bn' ? 'আর্থিক বিবরণী' : 'Financial Reports', icon: BarChart3 },
         ];
       case 'STAFF':
       default:

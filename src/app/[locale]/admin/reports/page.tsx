@@ -18,7 +18,7 @@ export default async function AdminReportsPage({
     : defaultLocale;
 
   const session = await getSession();
-  if (!session || (session.role !== 'ADMIN' && session.role !== 'SUPER_ADMIN')) {
+  if (!session || (session.role !== 'ADMIN' && session.role !== 'SUPER_ADMIN' && session.role !== 'ACCOUNTANT')) {
     redirect(`/${locale}/login?redirect=/${locale}/admin/reports`);
   }
 

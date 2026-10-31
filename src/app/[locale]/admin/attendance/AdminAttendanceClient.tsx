@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import {
@@ -37,6 +37,14 @@ export default function AdminAttendanceClient({
     return init;
   });
 
+  useEffect(() => {
+    const init: Record<string, 'PRESENT' | 'ABSENT' | 'LATE'> = {};
+    students.forEach((s) => {
+      init[s.id] = 'PRESENT';
+    });
+    setRecords(init);
+  }, [students]);
+
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
@@ -66,6 +74,7 @@ export default function AdminAttendanceClient({
       date: attendanceDate,
       records: students.map((s) => ({
         studentId: s.id,
+        sectionId: s.sectionId,
         status: records[s.id] || 'PRESENT',
       })),
     };

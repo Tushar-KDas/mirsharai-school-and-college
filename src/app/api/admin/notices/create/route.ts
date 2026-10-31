@@ -10,7 +10,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { titleBn, titleEn, contentBn, contentEn, category, isPinned } = body;
+    const { titleBn, titleEn, contentBn, contentEn, category, isPinned, attachmentUrl } = body;
 
     if (!titleBn || !titleEn || !contentBn || !contentEn) {
       return NextResponse.json({ error: 'Title and content are required in both languages' }, { status: 400 });
@@ -24,6 +24,7 @@ export async function POST(request: Request) {
         contentEn,
         category: category || 'GENERAL',
         isPinned: isPinned === true,
+        attachmentUrl: attachmentUrl || null,
         status: 'PUBLISHED',
       },
     });

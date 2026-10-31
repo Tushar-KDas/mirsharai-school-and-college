@@ -33,10 +33,47 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No active session found' }, { status: 500 });
     }
 
-    const secId = sectionId || targetClass.sections[0]?.id || targetClass.id;
-    const parsedRoll = parseInt(roll);
-    const studentId = `MSC-${activeSession.year}-${targetClass.numericValue * 100 + parsedRoll}`;
-    const admissionNo = `MSC-ADM-${activeSession.year}-${Date.now().toString().slice(-4)}`;
+    // Find valid sectionId
+    let secId = sectionId;
+    if (secId) {
+      const validSec = await prisma.section.findUnique({ where: { id: secId } });
+      if (!validSec) secId = null;
+    }
+    if (!secId && targetClass.sections && targetClass.sections.length > 0) {
+      secId = targetClass.sections[0].id;
+    }
+    if (!secId) {
+      const classSec = await prisma.section.findFirst({ where: { classId: targetClass.id } });
+      secId = classSec?.id;
+    }
+    if (!secId) {
+      const anySec = await prisma.section.findFirst();
+      secId = anySec?.id;
+    }
+    if (!secId) {
+      const newSec = await prisma.section.create({
+        data: {
+          nameBn: 'ক শাখা',
+          nameEn: 'Section A',
+          classId: targetClass.id,
+          capacity: 40,
+        },
+      });
+      secId = newSec.id;
+    }
+
+    const parsedRoll = parseInt(roll) || 1;
+    let studentId = `MSC-${activeSession.year}-${targetClass.numericValue * 100 + parsedRoll}`;
+    const idCheck = await prisma.student.findUnique({ where: { studentId } });
+    if (idCheck) {
+      studentId = `MSC-${activeSession.year}-${targetClass.numericValue * 100 + parsedRoll}-${Date.now().toString().slice(-4)}`;
+    }
+
+    let admissionNo = `MSC-ADM-${activeSession.year}-${targetClass.numericValue * 100 + parsedRoll}`;
+    const admCheck = await prisma.student.findUnique({ where: { admissionNo } });
+    if (admCheck) {
+      admissionNo = `MSC-ADM-${activeSession.year}-${Date.now().toString().slice(-6)}`;
+    }
 
     const newStudent = await prisma.student.create({
       data: {

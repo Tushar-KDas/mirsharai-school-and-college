@@ -5,6 +5,7 @@ import Footer from '@/components/public/Footer';
 import prisma from '@/lib/prisma';
 import { Locale, isValidLocale, defaultLocale } from '@/lib/i18n';
 import NoticeBoardClient from '@/components/public/NoticeBoardClient';
+import { fallbackNotices } from '@/data/fallbackData';
 
 export default async function NoticesPage({
   params,
@@ -21,13 +22,22 @@ export default async function NoticesPage({
   const resolvedSearch = searchParams ? await searchParams : {};
   const selectedCat = resolvedSearch?.category;
 
-  const notices = await prisma.notice.findMany({
-    where: {
-      status: 'PUBLISHED',
-      ...(selectedCat ? { category: selectedCat } : {}),
-    },
-    orderBy: { publishedAt: 'desc' },
-  });
+  let notices: any[] = [];
+  try {
+    notices = await prisma.notice.findMany({
+      where: {
+        status: 'PUBLISHED',
+        ...(selectedCat ? { category: selectedCat } : {}),
+      },
+      orderBy: { publishedAt: 'desc' },
+    });
+  } catch (error) {
+    console.warn('Notices query fallback activated:', error);
+  }
+
+  if (!notices || notices.length === 0) {
+    notices = selectedCat ? fallbackNotices.filter(n => n.category === selectedCat) : fallbackNotices;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">

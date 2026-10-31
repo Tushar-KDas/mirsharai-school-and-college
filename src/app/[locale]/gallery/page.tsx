@@ -5,6 +5,7 @@ import Footer from '@/components/public/Footer';
 import GalleryClient from '@/components/public/GalleryClient';
 import prisma from '@/lib/prisma';
 import { Locale, isValidLocale, defaultLocale } from '@/lib/i18n';
+import { fallbackGalleryItems } from '@/data/fallbackData';
 
 export default async function GalleryPage({
   params,
@@ -16,9 +17,18 @@ export default async function GalleryPage({
     ? (resolvedParams.locale as Locale)
     : defaultLocale;
 
-  const galleryItems = await prisma.galleryItem.findMany({
-    orderBy: { order: 'asc' },
-  });
+  let galleryItems: any[] = [];
+  try {
+    galleryItems = await prisma.galleryItem.findMany({
+      orderBy: { order: 'asc' },
+    });
+  } catch (error) {
+    console.warn('Gallery query fallback activated:', error);
+  }
+
+  if (!galleryItems || galleryItems.length === 0) {
+    galleryItems = fallbackGalleryItems;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">

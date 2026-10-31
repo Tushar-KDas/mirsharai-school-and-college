@@ -5,6 +5,7 @@ import Footer from '@/components/public/Footer';
 import prisma from '@/lib/prisma';
 import { Locale, isValidLocale, defaultLocale } from '@/lib/i18n';
 import FacultyDirectoryClient from '@/components/public/FacultyDirectoryClient';
+import { fallbackTeachers } from '@/data/fallbackData';
 
 export default async function TeachersPage({
   params,
@@ -16,10 +17,19 @@ export default async function TeachersPage({
     ? (resolvedParams.locale as Locale)
     : defaultLocale;
 
-  const teachers = await prisma.staff.findMany({
-    where: { isTeacher: true },
-    orderBy: { order: 'asc' },
-  });
+  let teachers: any[] = [];
+  try {
+    teachers = await prisma.staff.findMany({
+      where: { isTeacher: true },
+      orderBy: { order: 'asc' },
+    });
+  } catch (error) {
+    console.warn('Teachers query fallback activated:', error);
+  }
+
+  if (!teachers || teachers.length === 0) {
+    teachers = fallbackTeachers;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">

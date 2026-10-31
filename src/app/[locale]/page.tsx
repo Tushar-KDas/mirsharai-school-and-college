@@ -10,6 +10,7 @@ import HomeGallerySection from '@/components/public/HomeGallerySection';
 import prisma from '@/lib/prisma';
 import { Locale, isValidLocale, defaultLocale } from '@/lib/i18n';
 import { formatDate } from '@/lib/utils';
+import { fallbackNotices, fallbackEvents, fallbackGalleryItems } from '@/data/fallbackData';
 import {
   Bell,
   Calendar,
@@ -34,23 +35,38 @@ export default async function HomePage({
     ? (resolvedParams.locale as Locale)
     : defaultLocale;
 
-  // Query dynamic data from database
-  const [notices, events, galleryItems] = await Promise.all([
-    prisma.notice.findMany({
-      where: { status: 'PUBLISHED' },
-      orderBy: { publishedAt: 'desc' },
-      take: 4,
-    }),
-    prisma.academicEvent.findMany({
-      where: { isPublic: true },
-      orderBy: { startDate: 'asc' },
-      take: 3,
-    }),
-    prisma.galleryItem.findMany({
-      orderBy: { order: 'asc' },
-      take: 24,
-    }),
-  ]);
+  // Query dynamic data from database with robust fallback protection
+  let notices: any[] = [];
+  let events: any[] = [];
+  let galleryItems: any[] = [];
+
+  try {
+    const [dbNotices, dbEvents, dbGalleryItems] = await Promise.all([
+      prisma.notice.findMany({
+        where: { status: 'PUBLISHED' },
+        orderBy: { publishedAt: 'desc' },
+        take: 4,
+      }),
+      prisma.academicEvent.findMany({
+        where: { isPublic: true },
+        orderBy: { startDate: 'asc' },
+        take: 3,
+      }),
+      prisma.galleryItem.findMany({
+        orderBy: { order: 'asc' },
+        take: 24,
+      }),
+    ]);
+    notices = dbNotices;
+    events = dbEvents;
+    galleryItems = dbGalleryItems;
+  } catch (error) {
+    console.warn('Prisma query warning on HomePage, fallback activated:', error);
+  }
+
+  if (notices.length === 0) notices = fallbackNotices;
+  if (events.length === 0) events = fallbackEvents;
+  if (galleryItems.length === 0) galleryItems = fallbackGalleryItems;
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">

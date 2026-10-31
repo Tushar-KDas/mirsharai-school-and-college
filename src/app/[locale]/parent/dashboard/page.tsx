@@ -21,11 +21,16 @@ export default async function ParentDashboardPage({
     redirect(`/${locale}/login?redirect=/${locale}/parent/dashboard`);
   }
 
-  // Find linked student
-  const student = await prisma.student.findFirst({
-    where: { roll: 1 },
-    include: { class: true, section: true },
-  });
+  // Find linked student (Default to Class 10 student Tanvir Ahmed)
+  const student =
+    (await prisma.student.findFirst({
+      where: { studentId: 'MSC-2026-1001' },
+      include: { class: true, section: true },
+    })) ||
+    (await prisma.student.findFirst({
+      where: { roll: 1 },
+      include: { class: true, section: true },
+    }));
 
   if (!student) {
     return <div>No linked student profile found</div>;

@@ -65,10 +65,10 @@ export async function POST(req: Request) {
       user: payload,
       dashboardUrl: roleDashboard,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Login API error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error?.message || 'Internal server error' },
       { status: 500 }
     );
   }

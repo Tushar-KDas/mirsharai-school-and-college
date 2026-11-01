@@ -12,6 +12,7 @@ import prisma from '@/lib/prisma';
 import { Locale, isValidLocale, defaultLocale } from '@/lib/i18n';
 import { formatDate } from '@/lib/utils';
 import { fallbackNotices, fallbackEvents, fallbackGalleryItems } from '@/data/fallbackData';
+import { getNoticesCloud } from '@/lib/cloudStore';
 import {
   Bell,
   Calendar,
@@ -45,11 +46,11 @@ export default async function HomePage({
   let galleryItems: any[] = [];
 
   try {
-    const [dbNotices, dbEvents, dbGalleryItems] = await Promise.all([
+    const [dbNotices, dbEvents, dbGalleryItems, cloudNotices] = await Promise.all([
       prisma.notice.findMany({
         where: { status: 'PUBLISHED' },
         orderBy: { publishedAt: 'desc' },
-        take: 4,
+        take: 6,
       }),
       prisma.academicEvent.findMany({
         where: { isPublic: true },
@@ -60,8 +61,16 @@ export default async function HomePage({
         orderBy: { order: 'asc' },
         take: 24,
       }),
+      getNoticesCloud(6),
     ]);
-    notices = dbNotices;
+
+    const noticeMap = new Map();
+    (cloudNotices || []).forEach((n) => noticeMap.set(n.id, n));
+    (dbNotices || []).forEach((n) => {
+      if (!noticeMap.has(n.id)) noticeMap.set(n.id, n);
+    });
+    notices = Array.from(noticeMap.values());
+    notices.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
     events = dbEvents;
     galleryItems = dbGalleryItems;
   } catch (error) {

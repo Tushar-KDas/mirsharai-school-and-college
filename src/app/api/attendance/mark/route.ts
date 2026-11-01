@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { saveAttendanceCloud, getAttendanceCloud } from '@/lib/cloudStore';
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -85,6 +86,14 @@ export async function POST(request: Request) {
       }
     }
 
+    // Cloud sync to ensure persistent state across all serverless micro-VMs
+    try {
+      const dateKey = rawDate.toISOString().split('T')[0];
+      await saveAttendanceCloud(classId, dateKey, records);
+    } catch (e) {
+      console.warn('Cloud sync error for attendance:', e);
+    }
+
     return NextResponse.json({ success: true, count: records.length });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Saving attendance failed' }, { status: 500 });
@@ -127,7 +136,13 @@ export async function GET(request: Request) {
       records[att.studentId] = att.status;
     });
 
-    return NextResponse.json({ success: true, records, count: attendances.length });
+    // Merge cloud attendance records
+    try {
+      const cloudRecords = await getAttendanceCloud(classId, date);
+      Object.assign(records, cloudRecords);
+    } catch {}
+
+    return NextResponse.json({ success: true, records, count: Object.keys(records).length });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Fetching attendance failed' }, { status: 500 });
   }

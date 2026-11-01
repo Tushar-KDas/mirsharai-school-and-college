@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { Locale, isValidLocale, defaultLocale } from '@/lib/i18n';
 import AdminAttendanceClient from './AdminAttendanceClient';
+import { getAttendanceCloud } from '@/lib/cloudStore';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -42,7 +43,7 @@ export default async function AdminAttendancePage({
   const endOfDay = new Date(rawDate);
   endOfDay.setHours(23, 59, 59, 999);
 
-  const [students, existingAttendance] = await Promise.all([
+  const [students, existingAttendance, cloudAttendance] = await Promise.all([
     prisma.student.findMany({
       where: { classId: selectedClassId },
       orderBy: { roll: 'asc' },
@@ -57,12 +58,18 @@ export default async function AdminAttendancePage({
         },
       },
     }),
+    getAttendanceCloud(selectedClassId, selectedDate),
   ]);
 
   const initialRecords: Record<string, 'PRESENT' | 'ABSENT' | 'LATE'> = {};
   existingAttendance.forEach((att) => {
     initialRecords[att.studentId] = att.status as 'PRESENT' | 'ABSENT' | 'LATE';
   });
+  if (cloudAttendance) {
+    Object.keys(cloudAttendance).forEach((sid) => {
+      initialRecords[sid] = cloudAttendance[sid] as 'PRESENT' | 'ABSENT' | 'LATE';
+    });
+  }
 
   return (
     <DashboardLayout user={session}>

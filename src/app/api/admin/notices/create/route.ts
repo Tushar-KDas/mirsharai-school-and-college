@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { saveNoticeCloud } from '@/lib/cloudStore';
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -29,6 +30,13 @@ export async function POST(request: Request) {
         status: 'PUBLISHED',
       },
     });
+
+    // Cloud persistence for global Vercel serverless availability
+    try {
+      await saveNoticeCloud(notice);
+    } catch (e) {
+      console.warn('Cloud sync error for notice:', e);
+    }
 
     await prisma.auditLog.create({
       data: {

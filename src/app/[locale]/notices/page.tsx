@@ -6,6 +6,7 @@ import prisma from '@/lib/prisma';
 import { Locale, isValidLocale, defaultLocale } from '@/lib/i18n';
 import NoticeBoardClient from '@/components/public/NoticeBoardClient';
 import { fallbackNotices } from '@/data/fallbackData';
+import { getNoticesCloud } from '@/lib/cloudStore';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -27,13 +28,28 @@ export default async function NoticesPage({
 
   let notices: any[] = [];
   try {
-    notices = await prisma.notice.findMany({
-      where: {
-        status: 'PUBLISHED',
-        ...(selectedCat ? { category: selectedCat } : {}),
-      },
-      orderBy: { publishedAt: 'desc' },
+    const [dbNotices, cloudNotices] = await Promise.all([
+      prisma.notice.findMany({
+        where: {
+          status: 'PUBLISHED',
+          ...(selectedCat ? { category: selectedCat } : {}),
+        },
+        orderBy: { publishedAt: 'desc' },
+      }),
+      getNoticesCloud(50),
+    ]);
+
+    const noticeMap = new Map();
+    (cloudNotices || []).forEach((n) => {
+      if (!selectedCat || n.category === selectedCat) {
+        noticeMap.set(n.id, n);
+      }
     });
+    (dbNotices || []).forEach((n) => {
+      if (!noticeMap.has(n.id)) noticeMap.set(n.id, n);
+    });
+    notices = Array.from(noticeMap.values());
+    notices.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
   } catch (error) {
     console.warn('Notices query fallback activated:', error);
   }

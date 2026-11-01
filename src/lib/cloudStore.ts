@@ -1,0 +1,154 @@
+import { db } from './firebase';
+import {
+  collection,
+  doc,
+  setDoc,
+  getDocs,
+  query,
+  where,
+  limit,
+} from 'firebase/firestore';
+
+export interface CloudNotice {
+  id: string;
+  titleBn: string;
+  titleEn: string;
+  contentBn: string;
+  contentEn: string;
+  category: string;
+  isPinned: boolean;
+  attachmentUrl?: string | null;
+  publishedAt: string;
+  status: string;
+}
+
+export async function saveNoticeCloud(notice: {
+  id: string;
+  titleBn: string;
+  titleEn: string;
+  contentBn: string;
+  contentEn: string;
+  category?: string;
+  isPinned?: boolean;
+  attachmentUrl?: string | null;
+  publishedAt?: Date | string;
+  status?: string;
+}): Promise<void> {
+  const firestore = db;
+  if (!firestore) return;
+  try {
+    const docRef = doc(firestore, 'notices', notice.id);
+    await setDoc(
+      docRef,
+      {
+        id: notice.id,
+        titleBn: notice.titleBn,
+        titleEn: notice.titleEn,
+        contentBn: notice.contentBn,
+        contentEn: notice.contentEn,
+        category: notice.category || 'GENERAL',
+        isPinned: !!notice.isPinned,
+        attachmentUrl: notice.attachmentUrl || null,
+        publishedAt: notice.publishedAt
+          ? new Date(notice.publishedAt).toISOString()
+          : new Date().toISOString(),
+        status: notice.status || 'PUBLISHED',
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    console.warn('saveNoticeCloud error:', err);
+  }
+}
+
+export async function getNoticesCloud(maxLimit = 20): Promise<CloudNotice[]> {
+  const firestore = db;
+  if (!firestore) return [];
+  try {
+    const colRef = collection(firestore, 'notices');
+    const q = query(colRef, limit(maxLimit));
+    const snap = await getDocs(q);
+    const list: CloudNotice[] = [];
+    snap.forEach((d) => {
+      const data = d.data();
+      list.push({
+        id: d.id,
+        titleBn: data.titleBn || '',
+        titleEn: data.titleEn || '',
+        contentBn: data.contentBn || '',
+        contentEn: data.contentEn || '',
+        category: data.category || 'GENERAL',
+        isPinned: !!data.isPinned,
+        attachmentUrl: data.attachmentUrl || null,
+        publishedAt: data.publishedAt || data.createdAt || new Date().toISOString(),
+        status: data.status || 'PUBLISHED',
+      });
+    });
+    // Sort descending by publishedAt
+    list.sort(
+      (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+    );
+    return list;
+  } catch (err) {
+    console.warn('getNoticesCloud error:', err);
+    return [];
+  }
+}
+
+export async function saveAttendanceCloud(
+  classId: string,
+  dateStr: string,
+  records: Array<{ studentId: string; status: string }>
+): Promise<void> {
+  const firestore = db;
+  if (!firestore) return;
+  try {
+    const promises = records.map((r) => {
+      if (!r.studentId) return Promise.resolve();
+      const docId = `${classId}_${dateStr}_${r.studentId}`;
+      const docRef = doc(firestore, 'attendance', docId);
+      return setDoc(
+        docRef,
+        {
+          classId,
+          date: dateStr,
+          studentId: r.studentId,
+          status: r.status,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+    });
+    await Promise.all(promises);
+  } catch (err) {
+    console.warn('saveAttendanceCloud error:', err);
+  }
+}
+
+export async function getAttendanceCloud(
+  classId: string,
+  dateStr: string
+): Promise<Record<string, string>> {
+  const firestore = db;
+  if (!firestore) return {};
+  try {
+    const q = query(
+      collection(firestore, 'attendance'),
+      where('classId', '==', classId),
+      where('date', '==', dateStr)
+    );
+    const snap = await getDocs(q);
+    const result: Record<string, string> = {};
+    snap.forEach((d) => {
+      const data = d.data();
+      if (data.studentId && data.status) {
+        result[data.studentId] = data.status;
+      }
+    });
+    return result;
+  } catch (err) {
+    console.warn('getAttendanceCloud error:', err);
+    return {};
+  }
+}

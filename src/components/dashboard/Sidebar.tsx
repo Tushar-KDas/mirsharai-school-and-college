@@ -186,8 +186,8 @@ export default function Sidebar({ role, isOpen, onClose }: SidebarProps) {
         })}
       </div>
 
-      {/* Sidebar Footer with Logout Action */}
-      <div className="p-3 border-t border-navy-900 bg-navy-950/80">
+      {/* Sidebar Footer with Logout Action & Developer Credit */}
+      <div className="p-3 border-t border-navy-900 bg-navy-950/80 space-y-2">
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-300 hover:bg-rose-500/10 hover:text-rose-200 transition-colors"
@@ -195,6 +195,17 @@ export default function Sidebar({ role, isOpen, onClose }: SidebarProps) {
           <LogOut className="w-4 h-4 text-rose-400" />
           <span>{t.nav.logout}</span>
         </button>
+        <div className="text-center text-[11px] text-slate-500 pt-1 border-t border-navy-900/60">
+          <span>Developed by </span>
+          <a
+            href="https://tushar-kumar-das.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-cyan-400 hover:text-cyan-300 font-semibold hover:underline"
+          >
+            Tushar Kumar Das
+          </a>
+        </div>
       </div>
     </aside>
   );

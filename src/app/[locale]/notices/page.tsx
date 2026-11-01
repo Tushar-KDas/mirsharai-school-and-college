@@ -49,7 +49,11 @@ export default async function NoticesPage({
       if (!noticeMap.has(n.id)) noticeMap.set(n.id, n);
     });
     notices = Array.from(noticeMap.values());
-    notices.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+    notices.sort((a, b) => {
+      const tA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+      const tB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+      return (isNaN(tB) ? 0 : tB) - (isNaN(tA) ? 0 : tA);
+    });
   } catch (error) {
     console.warn('Notices query fallback activated:', error);
   }

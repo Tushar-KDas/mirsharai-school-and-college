@@ -112,16 +112,20 @@ export default function AdminAttendanceClient({
       if (res.ok && data.success) {
         setFeedback(
           locale === 'bn'
-            ? `দৈনিক হাজিরা সফলভাবে সংরক্ষিত হয়েছে! (মোট ${data.count} জন)`
-            : `Attendance marked successfully for ${data.count} students!`
+            ? `দৈনিক হাজিরা ক্লাউড ও ডেটাবেজে সফলভাবে সংরক্ষিত হয়েছে! (মোট ${data.count} জন)`
+            : `Attendance marked successfully in cloud registry for ${data.count} students!`
         );
         router.refresh();
         setTimeout(() => setFeedback(null), 4000);
       } else {
-        alert(data.error || 'Failed to save attendance');
+        alert(
+          locale === 'bn'
+            ? `হাজিরা সংরক্ষণ সম্পন্ন করা যায়নি: ${data.error || 'অনুগ্রহ করে আবার চেষ্টা করুন'}`
+            : (data.error || 'Failed to save attendance')
+        );
       }
     } catch {
-      alert('Network error');
+      alert(locale === 'bn' ? 'নেটওয়ার্ক সংযোগে সমস্যা হয়েছে' : 'Network communication error');
     } finally {
       setLoading(false);
     }

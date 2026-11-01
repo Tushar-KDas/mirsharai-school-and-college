@@ -25,9 +25,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Selected class not found' }, { status: 404 });
     }
 
-    const activeSession = await prisma.academicSession.findFirst({
-      where: { isCurrent: true },
-    }) || await prisma.academicSession.findFirst();
+    const activeSession =
+      (await prisma.academicSession.findFirst({
+        where: { isCurrent: true },
+      })) || (await prisma.academicSession.findFirst());
 
     if (!activeSession) {
       return NextResponse.json({ error: 'No active session found' }, { status: 500 });
@@ -62,17 +63,30 @@ export async function POST(request: Request) {
       secId = newSec.id;
     }
 
-    const parsedRoll = parseInt(roll) || 1;
+    const parsedRoll = parseInt(roll, 10) || 1;
+
+    // Guaranteed unique studentId
     let studentId = `MSC-${activeSession.year}-${targetClass.numericValue * 100 + parsedRoll}`;
-    const idCheck = await prisma.student.findUnique({ where: { studentId } });
-    if (idCheck) {
-      studentId = `MSC-${activeSession.year}-${targetClass.numericValue * 100 + parsedRoll}-${Date.now().toString().slice(-4)}`;
+    let idCollisions = 0;
+    while (await prisma.student.findUnique({ where: { studentId } })) {
+      idCollisions++;
+      studentId = `MSC-${activeSession.year}-${targetClass.numericValue * 100 + parsedRoll}-${Math.floor(1000 + Math.random() * 9000)}`;
+      if (idCollisions > 10) {
+        studentId = `MSC-${activeSession.year}-${Date.now().toString().slice(-6)}`;
+        break;
+      }
     }
 
+    // Guaranteed unique admissionNo
     let admissionNo = `MSC-ADM-${activeSession.year}-${targetClass.numericValue * 100 + parsedRoll}`;
-    const admCheck = await prisma.student.findUnique({ where: { admissionNo } });
-    if (admCheck) {
-      admissionNo = `MSC-ADM-${activeSession.year}-${Date.now().toString().slice(-6)}`;
+    let admCollisions = 0;
+    while (await prisma.student.findUnique({ where: { admissionNo } })) {
+      admCollisions++;
+      admissionNo = `MSC-ADM-${activeSession.year}-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
+      if (admCollisions > 10) {
+        admissionNo = `MSC-ADM-${Date.now()}`;
+        break;
+      }
     }
 
     const newStudent = await prisma.student.create({
@@ -97,18 +111,21 @@ export async function POST(request: Request) {
       },
     });
 
-    await prisma.auditLog.create({
-      data: {
-        userId: session.userId,
-        action: 'STUDENT_ENROLLED',
-        entity: 'Student',
-        entityId: newStudent.id,
-        details: `Enrolled student ${nameEn} in Class ${targetClass.numericValue}, Roll ${parsedRoll}`,
-      },
-    });
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: session.userId,
+          action: 'STUDENT_CREATED',
+          entity: 'Student',
+          entityId: newStudent.id,
+          details: `Enrolled new student: ${newStudent.nameEn} (ID: ${newStudent.studentId}) in Class ${targetClass.numericValue}`,
+        },
+      });
+    } catch {}
 
     return NextResponse.json({ success: true, student: newStudent });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Enrollment failed' }, { status: 500 });
+    console.error('Student creation error:', err);
+    return NextResponse.json({ error: err.message || 'Creating student failed' }, { status: 500 });
   }
 }

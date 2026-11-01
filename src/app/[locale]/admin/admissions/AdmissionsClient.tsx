@@ -33,10 +33,14 @@ export default function AdmissionsClient({ initialApplications }: { initialAppli
         );
         setTimeout(() => setFeedback(null), 4000);
       } else {
-        alert(data.error || 'Failed to approve');
+        alert(
+          locale === 'bn'
+            ? `ভর্তি অনুমোদন সম্পন্ন করা যায়নি: ${data.error || 'পুনরায় চেষ্টা করুন'}`
+            : (data.error || 'Failed to approve application')
+        );
       }
     } catch {
-      alert('Network error');
+      alert(locale === 'bn' ? 'নেটওয়ার্ক সংযোগে সমস্যা হয়েছে' : 'Network communication error');
     } finally {
       setLoadingId(null);
     }

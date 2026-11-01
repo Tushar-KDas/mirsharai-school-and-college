@@ -1,6 +1,5 @@
 import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import AnnouncementBar from '@/components/public/AnnouncementBar';
 import Navbar from '@/components/public/Navbar';
 import HeroBanner from '@/components/public/HeroBanner';
@@ -17,12 +16,6 @@ import {
   Bell,
   Calendar,
   ArrowRight,
-  Monitor,
-  BookOpen,
-  FlaskConical,
-  Laptop,
-  Trophy,
-  Bus,
   ChevronRight,
   MapPin,
 } from 'lucide-react';
@@ -51,35 +44,42 @@ export default async function HomePage({
         where: { status: 'PUBLISHED' },
         orderBy: { publishedAt: 'desc' },
         take: 6,
-      }),
+      }).catch(() => []),
       prisma.academicEvent.findMany({
         where: { isPublic: true },
         orderBy: { startDate: 'asc' },
         take: 3,
-      }),
+      }).catch(() => []),
       prisma.galleryItem.findMany({
         orderBy: { order: 'asc' },
         take: 24,
-      }),
-      getNoticesCloud(6),
+      }).catch(() => []),
+      getNoticesCloud(30).catch(() => []),
     ]);
 
     const noticeMap = new Map();
-    (cloudNotices || []).forEach((n) => noticeMap.set(n.id, n));
+    (cloudNotices || []).forEach((n) => {
+      if (n && n.id) noticeMap.set(n.id, n);
+    });
     (dbNotices || []).forEach((n) => {
-      if (!noticeMap.has(n.id)) noticeMap.set(n.id, n);
+      if (n && n.id && !noticeMap.has(n.id)) noticeMap.set(n.id, n);
     });
     notices = Array.from(noticeMap.values());
-    notices.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
-    events = dbEvents;
-    galleryItems = dbGalleryItems;
+    notices.sort((a, b) => {
+      const tA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+      const tB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+      return (isNaN(tB) ? 0 : tB) - (isNaN(tA) ? 0 : tA);
+    });
+    notices = notices.slice(0, 5);
+    events = dbEvents || [];
+    galleryItems = dbGalleryItems || [];
   } catch (error) {
     console.warn('Prisma query warning on HomePage, fallback activated:', error);
   }
 
-  if (notices.length === 0) notices = fallbackNotices;
-  if (events.length === 0) events = fallbackEvents;
-  if (galleryItems.length === 0) galleryItems = fallbackGalleryItems;
+  if (!notices || notices.length === 0) notices = fallbackNotices;
+  if (!events || events.length === 0) events = fallbackEvents;
+  if (!galleryItems || galleryItems.length === 0) galleryItems = fallbackGalleryItems;
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
@@ -120,30 +120,35 @@ export default async function HomePage({
               </div>
 
               <div className="space-y-3.5">
-                {notices.map((notice) => (
-                  <Link
-                    key={notice.id}
-                    href={`/${locale}/notices/${notice.id}`}
-                    className="group block p-3 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-blue-100/60 text-blue-700 flex flex-col items-center justify-center flex-shrink-0 text-[10px] font-bold leading-tight">
-                        <span>{new Date(notice.publishedAt).getDate()}</span>
-                        <span className="text-[9px] font-semibold uppercase">
-                          {new Date(notice.publishedAt).toLocaleString('en', { month: 'short' })}
-                        </span>
+                {notices.map((notice) => {
+                  const pDate = notice.publishedAt ? new Date(notice.publishedAt) : new Date();
+                  const safeDate = isNaN(pDate.getTime()) ? new Date() : pDate;
+                  const day = safeDate.getDate();
+                  const month = safeDate.toLocaleString('en', { month: 'short' });
+
+                  return (
+                    <Link
+                      key={notice.id}
+                      href={`/${locale}/notices/${notice.id}`}
+                      className="group block p-3 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-blue-100/60 text-blue-700 flex flex-col items-center justify-center flex-shrink-0 text-[10px] font-bold leading-tight">
+                          <span>{day}</span>
+                          <span className="text-[9px] font-semibold uppercase">{month}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-xs font-semibold text-slate-800 group-hover:text-blue-600 transition-colors line-clamp-2">
+                            {locale === 'bn' ? (notice.titleBn || notice.titleEn) : (notice.titleEn || notice.titleBn)}
+                          </h3>
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            {formatDate(notice.publishedAt, locale)}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-xs font-semibold text-slate-800 group-hover:text-blue-600 transition-colors line-clamp-2">
-                          {locale === 'bn' ? notice.titleBn : notice.titleEn}
-                        </h3>
-                        <p className="text-[10px] text-slate-400 mt-1">
-                          {formatDate(notice.publishedAt, locale)}
-                        </p>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  );
+                })}
               </div>
             </div>
 
@@ -174,25 +179,30 @@ export default async function HomePage({
               </div>
 
               <div className="space-y-4">
-                {events.map((evt) => (
-                  <div key={evt.id} className="flex items-start gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20 flex flex-col items-center justify-center flex-shrink-0 text-xs font-bold">
-                      <span>{new Date(evt.startDate).getDate()}</span>
-                      <span className="text-[9px] uppercase">
-                        {new Date(evt.startDate).toLocaleString('en', { month: 'short' })}
-                      </span>
+                {events.map((evt) => {
+                  const eDate = evt.startDate ? new Date(evt.startDate) : new Date();
+                  const safeEvtDate = isNaN(eDate.getTime()) ? new Date() : eDate;
+                  const eDay = safeEvtDate.getDate();
+                  const eMonth = safeEvtDate.toLocaleString('en', { month: 'short' });
+
+                  return (
+                    <div key={evt.id} className="flex items-start gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20 flex flex-col items-center justify-center flex-shrink-0 text-xs font-bold">
+                        <span>{eDay}</span>
+                        <span className="text-[9px] uppercase">{eMonth}</span>
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-900 leading-snug">
+                          {locale === 'bn' ? evt.titleBn : evt.titleEn}
+                        </h3>
+                        <p className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
+                          <MapPin className="w-3 h-3 text-slate-400" />
+                          <span>{locale === 'bn' ? evt.locationBn : evt.locationEn}</span>
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-xs font-bold text-slate-900 leading-snug">
-                        {locale === 'bn' ? evt.titleBn : evt.titleEn}
-                      </h3>
-                      <p className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-slate-400" />
-                        <span>{locale === 'bn' ? evt.locationBn : evt.locationEn}</span>
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

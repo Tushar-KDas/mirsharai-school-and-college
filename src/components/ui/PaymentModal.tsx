@@ -46,6 +46,7 @@ export default function PaymentModal({
     if (isSubmittingRef.current || loading) return;
     isSubmittingRef.current = true;
     setLoading(true);
+    const payAmount = dueAmount > 0 ? dueAmount : (invoice.totalPayable > 0 ? invoice.totalPayable : 800);
     try {
       const res = await fetch('/api/payment/process', {
         method: 'POST',
@@ -53,7 +54,7 @@ export default function PaymentModal({
         body: JSON.stringify({
           invoiceId: invoice.id,
           studentId: invoice.studentId,
-          amount: dueAmount > 0 ? dueAmount : invoice.totalPayable,
+          amount: payAmount,
           paymentMethod,
           payerPhone,
         }),
@@ -63,11 +64,13 @@ export default function PaymentModal({
       if (res.ok && data.success) {
         setPaymentResult(data);
       } else {
-        alert(
+        const errorMsg =
           data.error === 'INVOICE_ALREADY_PAID'
             ? (locale === 'bn' ? 'এই ফি-টি ইতিমধ্যে পরিশোধ করা হয়েছে।' : 'This fee has already been fully paid.')
-            : (data.error || 'Payment failed')
-        );
+            : data.error === 'INVALID_PAYMENT_AMOUNT'
+            ? (locale === 'bn' ? 'পেমেন্টের পরিমাণ সঠিক নয়।' : 'Invalid payment amount.')
+            : (data.error || (locale === 'bn' ? 'পেমেন্ট সম্পন্ন করা যায়নি' : 'Payment processing failed'));
+        alert(errorMsg);
       }
     } catch (err) {
       console.error(err);

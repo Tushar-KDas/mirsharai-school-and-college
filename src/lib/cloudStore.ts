@@ -7,7 +7,6 @@ import {
   getDocs,
   query,
   where,
-  limit,
 } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -28,6 +27,23 @@ function getDb() {
     console.warn('Firestore initialization warning:', err);
     return null;
   }
+}
+
+export function parseDateString(val: any): string {
+  if (!val) return new Date().toISOString();
+  if (typeof val === 'string') return val;
+  if (typeof val?.toDate === 'function') {
+    try {
+      return val.toDate().toISOString();
+    } catch {}
+  }
+  if (typeof val?.seconds === 'number') {
+    return new Date(val.seconds * 1000).toISOString();
+  }
+  if (val instanceof Date) {
+    return isNaN(val.getTime()) ? new Date().toISOString() : val.toISOString();
+  }
+  return new Date().toISOString();
 }
 
 export interface CloudNotice {
@@ -71,7 +87,7 @@ export async function saveNoticeCloud(notice: {
         isPinned: !!notice.isPinned,
         attachmentUrl: notice.attachmentUrl || null,
         publishedAt: notice.publishedAt
-          ? new Date(notice.publishedAt).toISOString()
+          ? parseDateString(notice.publishedAt)
           : new Date().toISOString(),
         status: notice.status || 'PUBLISHED',
         updatedAt: new Date().toISOString(),
@@ -83,33 +99,34 @@ export async function saveNoticeCloud(notice: {
   }
 }
 
-export async function getNoticesCloud(maxLimit = 20): Promise<CloudNotice[]> {
+export async function getNoticesCloud(maxLimit = 50): Promise<CloudNotice[]> {
   const firestore = getDb();
   if (!firestore) return [];
   try {
     const colRef = collection(firestore, 'notices');
-    const q = query(colRef, limit(maxLimit));
-    const snap = await getDocs(q);
+    const snap = await getDocs(colRef);
     const list: CloudNotice[] = [];
     snap.forEach((d) => {
       const data = d.data();
       list.push({
         id: d.id,
         titleBn: data.titleBn || '',
-        titleEn: data.titleEn || '',
+        titleEn: data.titleEn || data.titleBn || '',
         contentBn: data.contentBn || '',
-        contentEn: data.contentEn || '',
+        contentEn: data.contentEn || data.contentBn || '',
         category: data.category || 'GENERAL',
         isPinned: !!data.isPinned,
         attachmentUrl: data.attachmentUrl || null,
-        publishedAt: data.publishedAt || data.createdAt || new Date().toISOString(),
+        publishedAt: parseDateString(data.publishedAt || data.createdAt),
         status: data.status || 'PUBLISHED',
       });
     });
-    list.sort(
-      (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-    );
-    return list;
+    list.sort((a, b) => {
+      const tA = new Date(a.publishedAt).getTime();
+      const tB = new Date(b.publishedAt).getTime();
+      return (isNaN(tB) ? 0 : tB) - (isNaN(tA) ? 0 : tA);
+    });
+    return maxLimit ? list.slice(0, maxLimit) : list;
   } catch (err) {
     console.warn('getNoticesCloud error:', err);
     return [];

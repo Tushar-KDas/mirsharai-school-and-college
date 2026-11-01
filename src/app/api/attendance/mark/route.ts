@@ -90,3 +90,45 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: err.message || 'Saving attendance failed' }, { status: 500 });
   }
 }
+
+export async function GET(request: Request) {
+  const session = await getSession();
+  if (!session || (session.role !== 'ADMIN' && session.role !== 'SUPER_ADMIN' && session.role !== 'TEACHER')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const classId = searchParams.get('classId');
+    const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+
+    if (!classId) {
+      return NextResponse.json({ error: 'Class ID is required' }, { status: 400 });
+    }
+
+    const rawDate = new Date(date);
+    const startOfDay = new Date(rawDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(rawDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const attendances = await prisma.attendance.findMany({
+      where: {
+        classId,
+        date: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+    });
+
+    const records: Record<string, string> = {};
+    attendances.forEach((att) => {
+      records[att.studentId] = att.status;
+    });
+
+    return NextResponse.json({ success: true, records, count: attendances.length });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Fetching attendance failed' }, { status: 500 });
+  }
+}

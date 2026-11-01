@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 
@@ -36,6 +37,10 @@ export async function POST(request: Request) {
         details: `Created event: ${titleEn}`,
       },
     });
+
+    try {
+      revalidatePath('/', 'layout');
+    } catch {}
 
     return NextResponse.json({ success: true, event });
   } catch (err: any) {

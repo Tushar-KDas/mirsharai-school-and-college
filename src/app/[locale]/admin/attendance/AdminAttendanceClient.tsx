@@ -19,20 +19,24 @@ export default function AdminAttendanceClient({
   classes,
   students,
   initialClassId,
+  initialDate,
+  initialRecords,
 }: {
   classes: any[];
   students: any[];
   initialClassId: string;
+  initialDate?: string;
+  initialRecords?: Record<string, 'PRESENT' | 'ABSENT' | 'LATE'>;
 }) {
   const { locale, t } = useLanguage();
   const router = useRouter();
 
   const [selectedClass, setSelectedClass] = useState(initialClassId);
-  const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [attendanceDate, setAttendanceDate] = useState(initialDate || new Date().toISOString().split('T')[0]);
   const [records, setRecords] = useState<Record<string, 'PRESENT' | 'ABSENT' | 'LATE'>>(() => {
     const init: Record<string, 'PRESENT' | 'ABSENT' | 'LATE'> = {};
     students.forEach((s) => {
-      init[s.id] = 'PRESENT';
+      init[s.id] = (initialRecords && initialRecords[s.id]) || 'PRESENT';
     });
     return init;
   });
@@ -40,10 +44,10 @@ export default function AdminAttendanceClient({
   useEffect(() => {
     const init: Record<string, 'PRESENT' | 'ABSENT' | 'LATE'> = {};
     students.forEach((s) => {
-      init[s.id] = 'PRESENT';
+      init[s.id] = (initialRecords && initialRecords[s.id]) || 'PRESENT';
     });
     setRecords(init);
-  }, [students]);
+  }, [students, initialRecords]);
 
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -62,7 +66,25 @@ export default function AdminAttendanceClient({
 
   const handleClassChange = (newClassId: string) => {
     setSelectedClass(newClassId);
-    router.push(`/${locale}/admin/attendance?classId=${newClassId}`);
+    router.push(`/${locale}/admin/attendance?classId=${newClassId}&date=${attendanceDate}`);
+  };
+
+  const handleDateChange = async (newDate: string) => {
+    setAttendanceDate(newDate);
+    router.push(`/${locale}/admin/attendance?classId=${selectedClass}&date=${newDate}`);
+    try {
+      const res = await fetch(`/api/attendance/mark?classId=${selectedClass}&date=${newDate}`);
+      const data = await res.json();
+      if (res.ok && data.success && data.records) {
+        const updated: Record<string, 'PRESENT' | 'ABSENT' | 'LATE'> = {};
+        students.forEach((s) => {
+          updated[s.id] = data.records[s.id] || 'PRESENT';
+        });
+        setRecords(updated);
+      }
+    } catch (err) {
+      console.warn('Attendance date fetch error:', err);
+    }
   };
 
   const handleSaveAttendance = async () => {
@@ -93,6 +115,7 @@ export default function AdminAttendanceClient({
             ? `দৈনিক হাজিরা সফলভাবে সংরক্ষিত হয়েছে! (মোট ${data.count} জন)`
             : `Attendance marked successfully for ${data.count} students!`
         );
+        router.refresh();
         setTimeout(() => setFeedback(null), 4000);
       } else {
         alert(data.error || 'Failed to save attendance');
@@ -173,7 +196,7 @@ export default function AdminAttendanceClient({
             <input
               type="date"
               value={attendanceDate}
-              onChange={(e) => setAttendanceDate(e.target.value)}
+              onChange={(e) => handleDateChange(e.target.value)}
               className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-mono font-semibold text-slate-800"
             />
           </div>

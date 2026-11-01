@@ -7,6 +7,9 @@ import { Locale, isValidLocale, defaultLocale } from '@/lib/i18n';
 import NoticeBoardClient from '@/components/public/NoticeBoardClient';
 import { fallbackNotices } from '@/data/fallbackData';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function NoticesPage({
   params,
   searchParams,

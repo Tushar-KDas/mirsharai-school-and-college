@@ -50,6 +50,12 @@ export async function POST(request: Request) {
 
     try {
       revalidatePath('/', 'layout');
+      revalidatePath('/[locale]', 'page');
+      revalidatePath('/[locale]/notices', 'page');
+      revalidatePath('/bn');
+      revalidatePath('/en');
+      revalidatePath('/bn/notices');
+      revalidatePath('/en/notices');
     } catch {}
 
     return NextResponse.json({ success: true, notice });

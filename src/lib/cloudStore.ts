@@ -1,5 +1,6 @@
-import { db } from './firebase';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
+  getFirestore,
   collection,
   doc,
   setDoc,
@@ -8,6 +9,26 @@ import {
   where,
   limit,
 } from 'firebase/firestore';
+
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyDuwddr0viqFH9QUkA1SIAOLC7_FbcwbTI',
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'mirsharai-school-and-college.firebaseapp.com',
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'mirsharai-school-and-college',
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'mirsharai-school-and-college.firebasestorage.app',
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '410698632400',
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '1:410698632400:web:718cee40dbaecfe03da2d5',
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || 'G-KGF6S3KXJK',
+};
+
+function getDb() {
+  try {
+    const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+    return getFirestore(app);
+  } catch (err) {
+    console.warn('Firestore initialization warning:', err);
+    return null;
+  }
+}
 
 export interface CloudNotice {
   id: string;
@@ -34,7 +55,7 @@ export async function saveNoticeCloud(notice: {
   publishedAt?: Date | string;
   status?: string;
 }): Promise<void> {
-  const firestore = db;
+  const firestore = getDb();
   if (!firestore) return;
   try {
     const docRef = doc(firestore, 'notices', notice.id);
@@ -63,7 +84,7 @@ export async function saveNoticeCloud(notice: {
 }
 
 export async function getNoticesCloud(maxLimit = 20): Promise<CloudNotice[]> {
-  const firestore = db;
+  const firestore = getDb();
   if (!firestore) return [];
   try {
     const colRef = collection(firestore, 'notices');
@@ -85,7 +106,6 @@ export async function getNoticesCloud(maxLimit = 20): Promise<CloudNotice[]> {
         status: data.status || 'PUBLISHED',
       });
     });
-    // Sort descending by publishedAt
     list.sort(
       (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
     );
@@ -101,7 +121,7 @@ export async function saveAttendanceCloud(
   dateStr: string,
   records: Array<{ studentId: string; status: string }>
 ): Promise<void> {
-  const firestore = db;
+  const firestore = getDb();
   if (!firestore) return;
   try {
     const promises = records.map((r) => {
@@ -130,7 +150,7 @@ export async function getAttendanceCloud(
   classId: string,
   dateStr: string
 ): Promise<Record<string, string>> {
-  const firestore = db;
+  const firestore = getDb();
   if (!firestore) return {};
   try {
     const q = query(
